@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>BizarreLens - Speedwagon Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --primary: #F47521; --bg: #000; --card: #1c1e22; --text: #fff; --dim: #888; 
+            --s-watched: #4CAF50; --s-planned: #2196F3; --s-dropped: #f44336; --s-current: #FFEB3B;
+        }
+        * { box-sizing: border-box; outline: none; }
+        body { margin: 0; font-family: 'Roboto', sans-serif; background: var(--bg); color: var(--text); -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
+        
+        header { background: #111; padding: 10px 15px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #222; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .speed-text { font-size: 8px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px; }
+        .logo { color: var(--primary); font-weight: 900; font-size: 20px; text-decoration: none; text-transform: uppercase; cursor: pointer; }
+        
+        .safe-mode-toggle { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--dim); font-weight: bold; cursor: pointer; }
+        .safe-mode-toggle input { display: none; }
+        .toggle-track { width: 34px; height: 18px; background: #333; border-radius: 10px; position: relative; transition: 0.3s; }
+        .toggle-track::after { content: ''; width: 14px; height: 14px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: 0.3s; }
+        input:checked + .toggle-track { background: var(--primary); }
+        input:checked + .toggle-track::after { left: 18px; }
+
+        nav { display: flex; gap: 15px; overflow-x: auto; padding: 10px 0 5px; scrollbar-width: none; }
+        nav::-webkit-scrollbar { display: none; }
+        nav a { color: var(--text); text-decoration: none; font-weight: 700; font-size: 11px; text-transform: uppercase; opacity: 0.6; cursor: pointer; white-space: nowrap; transition: 0.2s; }
+        nav a.active { opacity: 1; border-bottom: 2px solid var(--primary); }
+
+        .filters { background: #111; padding: 15px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid #222; }
+        .f-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        input, select { background: #1c1e22; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 5px; font-size: 11px; width: 100%; }
+        
+        .genres-box { display: flex; flex-wrap: wrap; gap: 6px; max-height: 100px; overflow-y: auto; padding: 10px; background: #080808; border-radius: 5px; border: 1px solid #222; }
+        .g-btn { background: #222; border: none; color: #fff; padding: 5px 10px; border-radius: 12px; font-size: 9px; cursor: pointer; text-transform: uppercase; }
+        .g-btn.active { background: var(--primary); color: #000; font-weight: bold; }
+
+        .bm-filters { display: none; gap: 5px; overflow-x: auto; padding: 10px 15px; background: #111; border-bottom: 1px solid #222; scrollbar-width: none; }
+        .bm-filters::-webkit-scrollbar { display: none; }
+        .bm-btn { border: 1px solid #333; background: #1c1e22; color: #fff; padding: 5px 10px; border-radius: 15px; font-size: 10px; cursor: pointer; font-weight: bold; white-space: nowrap; }
+        .bm-btn.active { border-color: var(--primary); }
+
+        .container { padding: 12px; max-width: 1200px; margin: 0 auto; min-height: 100vh; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        @media (min-width: 600px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (min-width: 900px) { .grid { grid-template-columns: repeat(5, 1fr); } }
+
+        .card { background: var(--card); border-radius: 6px; overflow: hidden; transition: 0.2s; cursor: pointer; position: relative; border-bottom: 3px solid transparent; }
+        .card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; background: #111; }
+        .status-badge { position: absolute; top: 5px; left: 5px; padding: 2px 6px; font-size: 8px; border-radius: 3px; font-weight: 900; text-transform: uppercase; color: #000; z-index: 2; }
+        .next-ep-badge { position: absolute; bottom: 5px; left: 5px; right: 5px; background: rgba(0,0,0,0.8); color: var(--primary); font-size: 9px; padding: 4px; text-align: center; border-radius: 4px; font-weight: bold; }
+        
+        .card-body { padding: 8px; }
+        .card-title { font-size: 12px; font-weight: 700; height: 32px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 4px; }
+        .card-footer { font-size: 10px; color: var(--dim); display: flex; justify-content: space-between; }
+
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; z-index: 1000; padding: 15px; overflow-y: auto; }
+        .modal-inner { background: #111; border-radius: 8px; max-width: 900px; margin: auto; position: relative; padding: 20px; border: 1px solid #333; }
+        .m-close { position: absolute; top: 10px; right: 15px; font-size: 28px; cursor: pointer; color: #fff; }
+        
+        .m-flex { display: flex; flex-direction: column; gap: 20px; }
+        @media (min-width: 768px) { .m-flex { flex-direction: row; } }
+        .m-poster { width: 100%; max-width: 250px; border-radius: 5px; }
+        
+        .status-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 15px 0 10px; }
+        .st-btn { border: 1px solid #333; background: #1c1e22; color: #fff; padding: 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
+        .st-btn.active[data-st="watched"] { background: var(--s-watched); color: #000; }
+        .st-btn.active[data-st="planned"] { background: var(--s-planned); color: #000; }
+        .st-btn.active[data-st="current"] { background: var(--s-current); color: #000; }
+        .st-btn.active[data-st="dropped"] { background: var(--s-dropped); color: #000; }
+
+        /* Прогресс-бар и Читалка */
+        .progress-wrap { display: flex; align-items: center; gap: 8px; background: #1c1e22; padding: 10px; border-radius: 5px; border: 1px solid #333; margin-bottom: 15px; }
+        .p-btn { background: #333; color: #fff; border: none; width: 30px; height: 30px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .p-btn:hover { background: var(--primary); color: #000; }
+        .p-input { width: 60px; height: 30px; text-align: center; background: #111; border: 1px solid #444; color: #fff; border-radius: 4px; font-weight: bold; font-size: 14px; }
+        .p-input::-webkit-outer-spin-button, .p-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        .ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; max-height: 400px; overflow-y: auto; padding: 10px; scrollbar-width: thin; scrollbar-color: var(--primary) #111; }
+        .ch-btn { background: #222; color: #ccc; border: 1px solid #444; padding: 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.2s; }
+        .ch-btn:hover { background: var(--primary); color: #000; border-color: var(--primary); }
+        .md-reader img { width: 100%; display: block; margin: 0 auto; max-width: 900px; }
+
+        .btn-main { background: var(--primary); color: #000; border: none; padding: 12px; border-radius: 5px; font-weight: 900; width: 100%; cursor: pointer; margin-top: 10px; text-transform: uppercase; font-size: 12px; }
+        .btn-shiki { background: #333; color: #fff; text-decoration: none; display: block; text-align: center; padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 11px; font-weight: bold; }
+        
+        .media-wrap { margin-top: 20px; aspect-ratio: 16/9; width: 100%; background: #000; border-radius: 6px; overflow: hidden; display: none; border: 1px solid #333; }
+        .media-wrap iframe { width: 100%; height: 100%; border: none; }
+        .reader-wrap { margin-top: 20px; width: 100%; background: #111; border-radius: 6px; display: none; border: 1px solid #333; }
+        
+        .scroll-top { position: fixed; bottom: 20px; right: 20px; background: var(--primary); color: #000; width: 40px; height: 40px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; z-index: 99; }
+        #loader { text-align: center; padding: 20px; color: var(--primary); display: none; font-size: 11px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-top">
+        <div>
+            <span class="speed-text">сделано при поддержке фонда спидвагона</span>
+            <a class="logo" onclick="location.reload()">BizarreLens 2.0</a>
+        </div>
+        <label class="safe-mode-toggle">
+            SAFE
+            <input type="checkbox" id="safe-mode" onchange="toggleSafeMode()">
+            <div class="toggle-track"></div>
+        </label>
+    </div>
+    <nav id="nav">
+        <a onclick="setMode('animes')" id="n-animes" class="active">Аниме</a>
+        <a onclick="setMode('mangas')" id="n-mangas">Манга</a>
+        <a onclick="changeTab('calendar')" id="n-calendar">Скоро выйдет</a>
+        <a onclick="changeTab('bookmarks')" id="n-bookmarks">⭐ Закладки</a>
+        <a onclick="handleRandom()" style="color:var(--primary)">🎲 Рандом от спидвагона</a>
+    </nav>
+</header>
+
+<div class="filters" id="f-panel">
+    <input type="text" id="q" placeholder="Поиск в архивах..." oninput="debounceSearch()">
+    <div class="f-row">
+        <select id="sort" onchange="applyFilters()">
+            <option value="popularity">Популярные</option>
+            <option value="ranked">По рейтингу</option>
+            <option value="id">По порядку (ID)</option>
+            <option value="created_at">Новинки (Онгоинги)</option>
+        </select>
+        <select id="year" onchange="applyFilters()">
+            <option value="">Любой год</option>
+        </select>
+        <select id="kind" onchange="applyFilters()"></select>
+    </div>
+    <div class="genres-box" id="g-box"></div>
+</div>
+
+<div class="bm-filters" id="bm-filter-panel">
+    <button class="bm-btn active" onclick="sortBookmarks('')">Все</button>
+    <button class="bm-btn" style="color:var(--s-current)" onclick="sortBookmarks('current')">Смотрю</button>
+    <button class="bm-btn" style="color:var(--s-planned)" onclick="sortBookmarks('planned')">В планах</button>
+    <button class="bm-btn" style="color:var(--s-watched)" onclick="sortBookmarks('watched')">Готово</button>
+    <button class="bm-btn" style="color:var(--s-dropped)" onclick="sortBookmarks('dropped')">Бросил</button>
+</div>
+
+<div class="container">
+    <div class="grid" id="grid"></div>
+    <div id="loader">ФОНД СПИДВАГОНА ОБРАБАТЫВАЕТ ЗАПРОС...</div>
+</div>
+
+<div class="scroll-top" id="scrollTop" onclick="window.scrollTo({top:0, behavior:'smooth'})">↑</div>
+
+<div class="modal" id="modal" onclick="if(event.target==this)closeModal()">
+    <div class="modal-inner">
+        <span class="m-close" onclick="closeModal()">&times;</span>
+        <div class="m-flex">
+            <div style="position:relative;">
+                <img id="m-img" class="m-poster">
+            </div>
+            <div style="flex-grow: 1;">
+                <h2 id="m-name" style="color:var(--primary); margin:0 0 10px 0; font-size: 22px;"></h2>
+                <div id="m-meta" style="font-size:12px; margin-bottom:10px; padding:8px; background:#222; border-radius:4px; line-height:1.4;"></div>
+                
+                <div class="status-selector">
+                    <button class="st-btn" data-st="current" onclick="updateStatus('current')">Смотрю/Читаю</button>
+                    <button class="st-btn" data-st="planned" onclick="updateStatus('planned')">В планы</button>
+                    <button class="st-btn" data-st="watched" onclick="updateStatus('watched')">Готово</button>
+                    <button class="st-btn" data-st="dropped" onclick="updateStatus('dropped')">Бросил</button>
+                </div>
+
+                <div class="progress-wrap" id="progress-wrap">
+                    <span style="font-size:11px; font-weight:bold; color:var(--dim);" id="p-label">Прогресс:</span>
+                    <button class="p-btn" onclick="changeProgress(-1)">-</button>
+                    <input type="number" id="p-input" class="p-input" min="0" onchange="setProgress(this.value)">
+                    <button class="p-btn" onclick="changeProgress(1)">+</button>
+                    <span id="p-max" style="font-size:11px; color:var(--dim); margin-left:5px;"></span>
+                </div>
+
+                <p id="m-txt" style="font-size:13px; color:#ccc; line-height:1.5;"></p>
+                <div id="m-info" style="font-size:11px; color:var(--dim); margin-bottom:10px;"></div>
+                
+                <button id="btn-watch" class="btn-main">▶ Смотреть онлайн</button>
+                <button id="btn-read" class="btn-main" style="display:none; background:#8e44ad;">📖 Читать мангу (MangaDex)</button>
+                
+                <div id="m-links"></div>
+                <button onclick="toggleBookmark()" id="m-b-btn" class="btn-main" style="background:#222; color:#fff;"></button>
+            </div>
+        </div>
+        <div id="m-player-wrap" class="media-wrap"></div>
+        <div id="m-reader-wrap" class="reader-wrap"></div>
+        <div id="m-trailer-wrap" class="media-wrap"></div>
+    </div>
+</div>
+<script>
+    let mode = 'animes', page = 1, currentView = 'home', loading = false, timer;
+    let bookmarks = JSON.parse(localStorage.getItem('bl_book_v2') || '[]');
+    let userStatuses = JSON.parse(localStorage.getItem('bl_status_v2') || '{}');
+    let userProgress = JSON.parse(localStorage.getItem('bl_progress_v2') || '{}');
+    let isSafeMode = localStorage.getItem('bl_safe_mode') !== 'false';
+    let shownIds = new Set(), selectedG = [], currentItem = null, activeBmFilter = '';
+
+    document.getElementById('safe-mode').checked = isSafeMode;
+
+    function toggleSafeMode() {
+        isSafeMode = document.getElementById('safe-mode').checked;
+        localStorage.setItem('bl_safe_mode', isSafeMode);
+        applyFilters(); loadG();
+    }
+
+    const statusMap = {
+        current: { label: 'Смотрю', color: 'var(--s-current)' },
+        planned: { label: 'В планах', color: 'var(--s-planned)' },
+        watched: { label: 'Готово', color: 'var(--s-watched)' },
+        dropped: { label: 'Бросил', color: 'var(--s-dropped)' }
+    };
+
+    const kinds = {
+        animes: ['tv', 'movie', 'ova', 'ona', 'special'],
+        mangas: ['manga', 'manhwa', 'manhua', 'light_novel']
+    };
+
+    const yrSel = document.getElementById('year');
+    for(let y = 2026; y >= 1960; y--) {
+        let o = document.createElement('option'); o.value = y; o.innerText = y; yrSel.appendChild(o);
+    }
+
+    function setMode(m) {
+        mode = m; currentView = 'home'; selectedG = []; reset();
+        document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+        document.getElementById(`n-${m}`).classList.add('active');
+        document.getElementById('f-panel').style.display = 'flex';
+        document.getElementById('bm-filter-panel').style.display = 'none';
+        const ks = document.getElementById('kind');
+        ks.innerHTML = '<option value="">Тип</option>' + kinds[m].map(k => `<option value="${k}">${k.toUpperCase()}</option>`).join('');
+        loadG(); load();
+    }
+
+    async function loadG() {
+        try {
+            const r = await fetch(`https://shikimori.one/api/genres`);
+            const data = await r.json();
+            const forbidden = ['Hentai', 'Yaoi', 'Yuri', 'Хентай', 'Яой', 'Юри', 'Эччи', 'Ecchi'];
+            const filtered = data.filter(g => {
+                const isType = g.entry_type === (mode === 'animes' ? 'Anime' : 'Manga');
+                if(isSafeMode) return isType && !forbidden.includes(g.name) && !forbidden.includes(g.russian);
+                return isType;
+            }).slice(0, 45);
+            document.getElementById('g-box').innerHTML = filtered.map(x => 
+                `<button class="g-btn ${selectedG.includes(x.id) ? 'active' : ''}" onclick="tgG(this, ${x.id})">${x.russian || x.name}</button>`).join('');
+        } catch(e) {}
+    }
+
+    function tgG(btn, id) {
+        if(selectedG.includes(id)) { selectedG = selectedG.filter(x => x !== id); btn.classList.remove('active'); }
+        else { selectedG.push(id); btn.classList.add('active'); }
+        applyFilters();
+    }
+
+    function debounceSearch() { clearTimeout(timer); timer = setTimeout(applyFilters, 600); }
+
+    async function load() {
+        if (loading || currentView === 'bookmarks' || currentView === 'calendar') return;
+        loading = true; document.getElementById('loader').style.display = 'block';
+        let sortType = document.getElementById('sort').value;
+        let u = `https://shikimori.one/api/${mode}?page=${page}&limit=20&order=${sortType}`;
+        if(isSafeMode) u += `&censored=true`;
+        if(sortType === 'created_at') u += `&status=ongoing`;
+        
+        const q = document.getElementById('q').value;
+        const k = document.getElementById('kind').value;
+        const y = document.getElementById('year').value;
+        if(q) u += `&search=${encodeURIComponent(q)}`;
+        if(k) u += `&kind=${k}`;
+        if(y) u += `&season=${y}`;
+        if(selectedG.length) u += `&genre=${selectedG.join(',')}`;
+        
+        try {
+            const r = await fetch(u);
+            const data = await r.json();
+            data.forEach(x => renderCard(x));
+            page++;
+        } catch(e) {}
+        loading = false; document.getElementById('loader').style.display = 'none';
+    }
+
+    async function loadCalendar() {
+        loading = true; document.getElementById('loader').style.display = 'block';
+        try {
+            const r = await fetch(`https://shikimori.one/api/calendar`);
+            let data = await r.json();
+            if(isSafeMode) {
+                const forbidden = ['Hentai', 'Yaoi', 'Yuri', 'Ecchi'];
+                data = data.filter(item => !item.anime.genres || !item.anime.genres.some(g => forbidden.includes(g.name)));
+            }
+            data.forEach(item => {
+                let anime = item.anime;
+                anime.next_ep_at = item.next_episode_at;
+                anime.next_ep_num = item.next_episode;
+                renderCard(anime);
+            });
+        } catch(e) {}
+        loading = false; document.getElementById('loader').style.display = 'none';
+    }
+
+    function renderCard(x) {
+        if(shownIds.has(x.id)) return;
+        shownIds.add(x.id);
+        const status = userStatuses[x.id];
+        const div = document.createElement('div');
+        div.className = 'card';
+        if(status) div.style.borderColor = statusMap[status].color;
+        
+        let epInfo = '';
+        if(x.next_ep_at) {
+            const d = new Date(x.next_ep_at);
+            epInfo = `<div class="next-ep-badge">Эп ${x.next_ep_num}: ${d.toLocaleDateString('ru-RU')}</div>`;
+        }
+        
+        // Показываем сохраненный прогресс прямо на карточке
+        const prog = userProgress[x.id] ? `<div style="position:absolute; top:5px; right:5px; background:rgba(0,0,0,0.8); color:#fff; font-size:9px; padding:2px 5px; border-radius:3px; z-index:2; font-weight:bold;">${mode === 'animes' ? 'Эп' : 'Гл'} ${userProgress[x.id]}</div>` : '';
+
+        div.innerHTML = `${status ? `<span class="status-badge" style="background:${statusMap[status].color}">${statusMap[status].label}</span>` : ''}
+            ${prog}
+            <img src="https://shikimori.one${x.image.preview}" loading="lazy" onerror="this.src='https://placehold.jp/24/333333/ffffff/200x300.png?text=No%20Image'">
+            ${epInfo}
+            <div class="card-body"><div class="card-title">${x.russian || x.name}</div>
+            <div class="card-footer"><span>★ ${x.score || '?'}</span><span>${x.kind ? x.kind.toUpperCase() : ''}</span></div></div>`;
+        div.onclick = () => openFullInfo(x.id);
+        document.getElementById('grid').appendChild(div);
+    }
+
+    async function openFullInfo(id) {
+        document.getElementById('loader').style.display = 'block';
+        try {
+            const reqMode = currentView === 'calendar' ? 'animes' : mode;
+            const r = await fetch(`https://shikimori.one/api/${reqMode}/${id}`);
+            const x = await r.json();
+            currentItem = x;
+            
+            document.getElementById('modal').style.display = 'flex';
+            document.getElementById('m-player-wrap').innerHTML = '';
+            document.getElementById('m-player-wrap').style.display = 'none';
+            document.getElementById('m-reader-wrap').innerHTML = '';
+            document.getElementById('m-reader-wrap').style.display = 'none';
+            document.getElementById('m-trailer-wrap').innerHTML = '';
+            document.getElementById('m-trailer-wrap').style.display = 'none';
+
+            document.getElementById('m-name').innerText = x.russian || x.name;
+            document.getElementById('m-img').src = 'https://shikimori.one' + x.image.original;
+            
+            const maxVal = x.episodes || x.chapters || 0;
+            let metaHtml = `<b>★ ${x.score}</b> | ${x.status} | ${maxVal || '?'} ${reqMode === 'animes' ? 'эп' : 'гл'}`;
+            if (x.next_episode_at) {
+                const epDate = new Date(x.next_episode_at).toLocaleString('ru-RU', {day: 'numeric', month: 'long', hour: '2-digit', minute:'2-digit'});
+                metaHtml += `<br><span style="color:var(--primary);">🗓 След. эпизод: ${epDate}</span>`;
+            }
+            document.getElementById('m-meta').innerHTML = metaHtml;
+            document.getElementById('m-txt').innerHTML = x.description || "Информации пока нет.";
+            document.getElementById('m-info').innerHTML = `<b>Жанры:</b> ${x.genres.map(g => g.russian || g.name).join(', ')}`;
+            document.getElementById('m-links').innerHTML = `<a href="https://shikimori.one${x.url}" target="_blank" class="btn-shiki">ОТКРЫТЬ НА SHIKIMORI</a>`;
+
+            // Установка статуса
+            const currentSt = userStatuses[x.id];
+            document.querySelectorAll('.st-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-st') === currentSt));
+
+            // Установка прогресса
+            document.getElementById('p-label').innerText = reqMode === 'animes' ? "Остановился на серии:" : "Остановился на главе:";
+            document.getElementById('p-input').value = userProgress[x.id] || 0;
+            document.getElementById('p-max').innerText = maxVal ? `/ ${maxVal}` : '';
+
+            // Кнопки просмотра/чтения
+            const btnW = document.getElementById('btn-watch');
+            const btnR = document.getElementById('btn-read');
+            if (reqMode === 'animes') {
+                btnW.style.display = 'block'; btnR.style.display = 'none';
+                btnW.onclick = () => {
+                    const p = document.getElementById('m-player-wrap'); p.style.display = 'block';
+                    p.innerHTML = `<iframe src="//kodik.cc/find-player?shikimoriID=${x.id}" frameborder="0" allowfullscreen allow="autoplay; fullscreen"></iframe>`;
+                    p.scrollIntoView({behavior: "smooth", block: "center"});
+                };
+            } else {
+                btnW.style.display = 'none'; btnR.style.display = 'block';
+                btnR.onclick = () => fetchMangaDex(x.name || x.russian);
+            }
+
+            if (x.videos && x.videos.length > 0) {
+                const tr = document.getElementById('m-trailer-wrap'); tr.style.display = 'block';
+                tr.innerHTML = `<iframe src="${x.videos[0].player_url}" frameborder="0" allowfullscreen allow="autoplay; fullscreen"></iframe>`;
+            }
+            const isB = bookmarks.some(b => b.id === x.id);
+            document.getElementById('m-b-btn').innerText = isB ? "Удалить из закладок" : "В закладки";
+        } catch(e) {}
+        document.getElementById('loader').style.display = 'none';
+    }
+
+    // --- ЛОГИКА ПРОГРЕССА ---
+    function changeProgress(val) {
+        let current = parseInt(document.getElementById('p-input').value) || 0;
+        setProgress(current + val);
+    }
+
+    function setProgress(val) {
+        val = parseInt(val) || 0;
+        if (val < 0) val = 0;
+        
+        const maxVal = currentItem.episodes || currentItem.chapters || 0;
+        if (maxVal > 0 && val > maxVal) val = maxVal;
+        
+        document.getElementById('p-input').value = val;
+        userProgress[currentItem.id] = val;
+        localStorage.setItem('bl_progress_v2', JSON.stringify(userProgress));
+    }
+
+    // --- ИНТЕГРАЦИЯ MANGADEX API ---
+    async function fetchMangaDex(queryTitle) {
+        const p = document.getElementById('m-reader-wrap');
+        p.style.display = 'block';
+        p.innerHTML = '<div style="padding:30px; text-align:center; color:var(--primary);">Подключение к базе MangaDex...</div>';
+        p.scrollIntoView({behavior: "smooth", block: "center"});
+
+        try {
+            // 1. Ищем ID манги (MangaDex лучше понимает английский/ромадзи, поэтому берем x.name)
+            const res = await fetch(`https://api.mangadex.org/manga?title=${encodeURIComponent(queryTitle)}&limit=1&order[relevance]=desc`);
+            const data = await res.json();
+            
+            if(!data.data || data.data.length === 0) {
+                p.innerHTML = '<div style="padding:20px; text-align:center;">К сожалению, манга не найдена в базе MangaDex.</div>';
+                return;
+            }
+            const mangaId = data.data[0].id;
+
+            // 2. Ищем переведенные на русский главы
+            const feedRes = await fetch(`https://api.mangadex.org/manga/${mangaId}/feed?translatedLanguage[]=ru&order[chapter]=desc&limit=200`);
+            const feedData = await feedRes.json();
+
+            if(!feedData.data || feedData.data.length === 0) {
+                p.innerHTML = '<div style="padding:20px; text-align:center;">Русский перевод для этой манги не найден.</div>';
+                return;
+            }
+
+            // 3. Выводим список глав
+            let html = '<div style="padding:15px; background:#111;"><h3 style="margin-top:0; color:var(--primary);">Выберите главу:</h3><div class="ch-grid">';
+            feedData.data.forEach(ch => {
+                const num = ch.attributes.chapter || '?';
+                const title = ch.attributes.title ? ` - ${ch.attributes.title}` : '';
+                html += `<button class="ch-btn" onclick="openChapter('${ch.id}', '${num}')">Глава ${num}${title}</button>`;
+            });
+            html += '</div></div>';
+            p.innerHTML = html;
+
+        } catch(e) {
+            p.innerHTML = '<div style="padding:20px; text-align:center;">Ошибка соединения с MangaDex API</div>';
+        }
+    }
+
+    async function openChapter(chapterId, chapterNum) {
+        const p = document.getElementById('m-reader-wrap');
+        p.innerHTML = '<div style="padding:30px; text-align:center; color:var(--primary);">Загрузка страниц... (Это может занять время)</div>';
+        p.scrollIntoView({behavior: "smooth", block: "center"});
+
+        try {
+            // Получаем ссылки на сервера с картинками
+            const res = await fetch(`https://api.mangadex.org/at-home/server/${chapterId}`);
+            const data = await res.json();
+            
+            const baseUrl = data.baseUrl;
+            const hash = data.chapter.hash;
+            const pages = data.chapter.data;
+            
+            let html = '<div style="background:#000; padding-top:10px;">';
+            html += `<button class="btn-main" style="width:auto; margin:0 0 15px 15px; background:#333; color:#fff;" onclick="document.getElementById('btn-read').click()">⬅ Назад к списку глав</button>`;
+            html += `<div class="md-reader">`;
+            
+            // Генерируем картинки
+            pages.forEach(img => {
+                html += `<img src="${baseUrl}/data/${hash}/${img}" loading="lazy">`;
+            });
+            
+            html += '</div></div>';
+            p.innerHTML = html;
+
+            // Автоматически отмечаем прочитанную главу в прогрессе
+            if(chapterNum && chapterNum !== '?') {
+                setProgress(Math.max(parseInt(chapterNum), userProgress[currentItem.id] || 0));
+            }
+
+        } catch(e) {
+            p.innerHTML = '<div style="padding:20px; text-align:center;">Ошибка загрузки изображений.</div>';
+        }
+    }
+
+    async function handleRandom() {
+        document.getElementById('loader').style.display = 'block';
+        try {
+            const randomPage = Math.floor(Math.random() * 2500) + 1;
+            let u = `https://shikimori.one/api/${mode}?page=${randomPage}&limit=20`;
+            if(isSafeMode) u += `&censored=true`;
+            const r = await fetch(u);
+            const data = await r.json();
+            if(data && data.length > 0) {
+                const randomItem = data[Math.floor(Math.random() * data.length)];
+                openFullInfo(randomItem.id);
+            } else handleRandom();
+        } catch(e) { document.getElementById('loader').style.display = 'none'; }
+    }
+
+    function updateStatus(st) {
+        if(userStatuses[currentItem.id] === st) delete userStatuses[currentItem.id];
+        else userStatuses[currentItem.id] = st;
+        localStorage.setItem('bl_status_v2', JSON.stringify(userStatuses));
+        openFullInfo(currentItem.id);
+        if(currentView === 'bookmarks') renderBookmarks(); else applyFilters();
+    }
+
+    function toggleBookmark() {
+        const idx = bookmarks.findIndex(b => b.id === currentItem.id);
+        if(idx > -1) bookmarks.splice(idx, 1); else bookmarks.push(currentItem);
+        localStorage.setItem('bl_book_v2', JSON.stringify(bookmarks));
+        openFullInfo(currentItem.id);
+        if(currentView === 'bookmarks') renderBookmarks();
+    }
+
+    function sortBookmarks(status) {
+        activeBmFilter = status;
+        document.querySelectorAll('.bm-btn').forEach(b => b.classList.remove('active'));
+        if(event) event.target.classList.add('active');
+        renderBookmarks();
+    }
+
+    function renderBookmarks() {
+        reset();
+        let sorted = [...bookmarks];
+        if (activeBmFilter) {
+            sorted.sort((a, b) => (userStatuses[b.id] === activeBmFilter ? 1 : 0) - (userStatuses[a.id] === activeBmFilter ? 1 : 0));
+        }
+        sorted.forEach(x => renderCard(x));
+    }
+
+    function changeTab(t) {
+        currentView = t; reset();
+        document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+        if(document.getElementById(`n-${t}`)) document.getElementById(`n-${t}`).classList.add('active');
+        document.getElementById('f-panel').style.display = (t === 'bookmarks' || t === 'calendar') ? 'none' : 'flex';
+        document.getElementById('bm-filter-panel').style.display = (t === 'bookmarks') ? 'flex' : 'none';
+        if(t === 'bookmarks') renderBookmarks(); else if (t === 'calendar') loadCalendar(); else load();
+    }
+
+    function reset() { page = 1; shownIds.clear(); document.getElementById('grid').innerHTML = ''; }
+    function applyFilters() { reset(); load(); }
+    function closeModal() { 
+        document.getElementById('modal').style.display = 'none'; 
+        document.getElementById('m-player-wrap').innerHTML = ''; 
+        document.getElementById('m-reader-wrap').innerHTML = ''; 
+        document.getElementById('m-trailer-wrap').innerHTML = ''; 
+        if(currentView === 'home') { reset(); load(); } // Обновляем грид, чтобы обновить цифры прогресса на карточках
+    }
+
+    window.onscroll = () => { 
+        if(!loading && (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 800) load(); 
+        document.getElementById('scrollTop').style.display = window.scrollY > 600 ? 'flex' : 'none';
+    };
+    setMode('animes');
+</script>
+</body>
+</html>
